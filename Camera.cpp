@@ -50,7 +50,9 @@ bool Camera::setup(int camera_number, std::string camera_name, cv::Size image_si
 	bool return_bool = false;
 	this->image_size = image_size;
 	this->camera_name = camera_name;
-	this->camera_number = camera_number;
+	this->camera_number = camera_number; 
+	this->held_frame = cv::Mat::zeros(image_size, CV_8UC3);
+	this->prev_held_frame = cv::Mat::zeros(image_size, CV_8UC3);
 
 	capture = cv::VideoCapture(camera_number);
 	if (capture.isOpened())
@@ -68,16 +70,17 @@ bool Camera::setup(int camera_number, std::string camera_name, cv::Size image_si
 }
 
 // Capture a frame, store to this->frame_raw.
-bool Camera::doCapture()
+bool Camera::doCapture(bool hold_frame)
 {
-	/*if (relay_init)
-	{
-		setRelay(true);
-	}*/
-
+	
 	bool return_bool = false;
 
+	if (hold_frame)
+		held_frame.copyTo(prev_held_frame);
+
 	capture >> frame_raw;
+	if (hold_frame)
+		frame_raw.copyTo(held_frame);
 	if (capture.isOpened())
 		return_bool = true;
 
@@ -97,14 +100,23 @@ bool Camera::grab()
 }
 
 // Convert this->frame_raw into a grayscale image and return it.
-cv::Mat Camera::getFrameGrayscale()
+cv::Mat Camera::getFrameGrayscale(bool use_prev_held_frame)
 {
-	cv::Mat return_frame = frame_raw;
-	if ((!frame_raw.data == NULL) && (frame_raw.depth() != 1))
-		cvtColor(frame_raw, return_frame, CV_BGR2GRAY);
+	cv::Mat return_frame;
+	
+	
+	if (!use_prev_held_frame)
+	{
+		if ((!frame_raw.data == NULL) && (frame_raw.depth() != 1))
+			cvtColor(frame_raw, return_frame, CV_BGR2GRAY);
+	}
+	else
+	{
+		if ((!held_frame.data == NULL) && (held_frame.depth() != 1))
+			cvtColor(held_frame, return_frame, CV_BGR2GRAY);
+	}
 
 	return return_frame;
-
 }
 
 // Attempts to set up a YoctoPuce USB Relay

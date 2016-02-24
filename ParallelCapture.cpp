@@ -64,6 +64,11 @@ bool ParallelCapture::addCalibrationImage(cv::Mat cam_frame, cv::Mat ir_frame)
 				cv::CALIB_CB_ASYMMETRIC_GRID);
 		}
 	}
+	if (found_corners[0])
+		std::cout << "rs" << std::endl;
+
+	if (found_corners[1])
+		std::cout << "cam" << std::endl;
 
 	// If we found the chessboard in both images, refine and store the data
 	if (found_corners[0] && found_corners[1])

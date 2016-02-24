@@ -372,7 +372,16 @@ int cvPairCalib()
 	{
 		start_time = cv::getTickCount();
 
-		cap = cam.doCapture();
+		depth_cam.setLaser(false);
+		cam.setRelay(true);
+		//cv::waitKey();
+		cam.doCapture();
+		cam.doCapture();
+		cam.doCapture();
+		cap = cam.doCapture(true);
+		depth_cam.setLaser(true);
+		cam.setRelay(false);
+		cv::waitKey(80);
 		dcap = depth_cam.doCapture();
 		
 		// Grab an image frame
@@ -419,7 +428,7 @@ int cvPairCalib()
 		wait_time = std::max(2, (int)(LOOP_DELAY - process_time));
 		input = cv::waitKey(wait_time);
 
-		if (input == 99)
+		if (input == 99)// c?
 		{
 			if (!pll.calibration_initialised && !pll.calibration_completed)
 			{
@@ -656,10 +665,7 @@ int trialPreProc()
 	int threshold_typeir = 3;
 	int threshold_valueir = 0;
 	int bilatir = 30;
-	int delay1 = 80;
-	int delay2 = 80;
 	int delay3 = 80;
-	int delay4 = 80;
 	
 	cv::createTrackbar(trackbar_type, "webcam", &threshold_type, 4);
 	cv::createTrackbar(trackbar_value, "webcam", &threshold_value, 255);
@@ -668,10 +674,8 @@ int trialPreProc()
 	cv::createTrackbar(trackbar_type, "ir", &threshold_typeir, 4);
 	cv::createTrackbar(trackbar_value, "ir", &threshold_valueir, 255);
 	cv::createTrackbar(trackbar_filter, "ir", &bilatir, 150);
-	cv::createTrackbar(d1, "ir", &delay1, 500);
-	cv::createTrackbar(d2, "ir", &delay2, 500);
 	cv::createTrackbar(d3, "ir", &delay3, 500);
-	cv::createTrackbar(d4, "ir", &delay4, 500);
+	
 	
 	cv::Mat processed_image;
 	cv::Mat processed_ir, processed_ir1;
@@ -680,36 +684,27 @@ int trialPreProc()
 		int64 start_time = cv::getTickCount();
 		realsense.setLaser(false);
 		webcam.setRelay(true);
-		cv::waitKey(delay1);
+		//cv::waitKey();
 		webcam.doCapture();
 		webcam.doCapture();
 		webcam.doCapture();
-		webcam.doCapture();
-		webcam.doCapture();
-		webcam.doCapture();
-		cv::waitKey(delay2);
+		webcam.doCapture(true);
 		realsense.setLaser(true);
 		webcam.setRelay(false);
 		cv::waitKey(delay3);
 		realsense.doCapture();
-		cv::waitKey(delay4);
-		processed_image = IPUtils::preProcess(webcam.getFrameGrayscale(), bilat, threshold_value, threshold_type);
+		//cv::waitKey();
+		processed_image = IPUtils::preProcess(webcam.getFrameGrayscale(true), bilat, threshold_value, threshold_type);
 		processed_ir = IPUtils::preProcess(realsense.mat_ir, bilatir, threshold_valueir, threshold_typeir);
-		processed_ir1 = IPUtils::preProcess(realsense.mat_ir1, bilatir, threshold_valueir, threshold_typeir);
-
-		cv::imshow("ir1", realsense.mat_ir1);
+		
 		cv::imshow("webcam", processed_image);
-		cv::imshow("ir", realsense.mat_ir);
+		cv::imshow("ir", processed_ir);
 		cv::imshow("depth", realsense.mat_depth);
 
 		int64 process_time = (((cv::getTickCount() - start_time) / cv::getTickFrequency()) * 1000);
 		int wait_time = std::max(2, (int)(LOOP_DELAY - process_time));
 		int ret = cv::waitKey(wait_time);
-		if (ret == 108)
-		{
-			
-		}
-		else if (ret >= 0)
+		if (ret >= 0)
 			continue_flag = false;
 	}
 	cv::destroyAllWindows();

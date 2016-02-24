@@ -75,8 +75,6 @@ bool RealSense::doCapture()
 
 		if (this->depth_flag)
 		{
-			// keep 1 previous images.
-			mat_depth.copyTo(mat_depth1);
 			PXCImage *depthIm;
 			// fetch the frame from the sample
 			depthIm = sample->depth;
@@ -86,15 +84,13 @@ bool RealSense::doCapture()
 			// Shoves the pxc image data into an open cv Mat 
 			// CV_8UC3 is a 3 channel 8 bit unsigned character (ie 24 bit rgb equivalent)
 			// CV_16U is a 16 bit unsigned int
-			mat_depth = cv::Mat(SET_HEIGHT, SET_WIDTH, CV_16UC1, (uint16_t*)pxc_data_depth.planes[0]);
+			cv::Mat temp(SET_HEIGHT, SET_WIDTH, CV_16UC1, (uint16_t*)pxc_data_depth.planes[0]);
+			temp.copyTo(mat_depth);
 			pxc_depth_image->ReleaseAccess(&pxc_data_depth);
 		}
 
 		if (this->ir_flag)
 		{
-			// keep 1 previous images.
-			mat_ir1 = mat_ir.clone();
-			mat_ir.copyTo(mat_ir1);
 			PXCImage *irIm;
 			irIm = sample->ir;
 			PXCImage *pxc_ir_image = irIm;
@@ -110,7 +106,8 @@ bool RealSense::doCapture()
 			colourIm = sample->color;
 			PXCImage *pxc_colour_image = colourIm;
 			pxc_colour_image->AcquireAccess(PXCImage::ACCESS_READ_WRITE, PXCImage::PIXEL_FORMAT_RGB24, &pxc_data_rgb);
-			mat_rgb = cv::Mat(SET_HEIGHT, SET_WIDTH, CV_8UC3, pxc_data_rgb.planes[0]);
+			cv::Mat temp(SET_HEIGHT, SET_WIDTH, CV_8UC3, pxc_data_rgb.planes[0]);
+			temp.copyTo(mat_rgb);
 			pxc_colour_image->ReleaseAccess(&pxc_data_rgb);
 		}
 

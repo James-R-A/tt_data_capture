@@ -32,8 +32,8 @@ public:
 	bool parallel;
 	bool laser;
 	cv::Mat mat_rgb;
-	cv::Mat mat_depth, mat_depth1;
-	cv::Mat mat_ir, mat_ir1;
+	cv::Mat mat_depth;
+	cv::Mat mat_ir;
 	bool setup(bool depth_flag, bool ir_flag, bool colour_flag, bool depth_raw = true, bool parallel = false);
 	bool doCapture();
 	int queryLaser();

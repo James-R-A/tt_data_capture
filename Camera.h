@@ -19,7 +19,7 @@ private:
 
 public:
 	bool open;
-	cv::Mat frame_raw;
+	cv::Mat frame_raw, held_frame, prev_held_frame;
 	cv::Mat frame_gray;
 	std::string camera_name;
 	int camera_number;
@@ -32,8 +32,8 @@ public:
 	static std::vector<int> detectCameras(int max_check, bool builtin_flag);
 	bool setup(int camera_number, std::string camera_name, cv::Size image_size);
 	bool grab();
-	bool doCapture();
-	cv::Mat getFrameGrayscale();
+	bool doCapture(bool hold_frame = false);
+	cv::Mat getFrameGrayscale(bool use_prev_held_frame = false);
 	bool initRelay();
 	bool switchRelay();
 	bool setRelay(bool value);
