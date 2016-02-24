@@ -82,9 +82,9 @@ bool ParallelCapture::addCalibrationImage(cv::Mat cam_frame, cv::Mat ir_frame)
 		}
 
 		char name[40];
-		sprintf(name, "images/calibration%02dIR.png", samples);
+		sprintf(name, "D:/calib_images/calibration%02dIR.png", samples);
 		imwrite(name, image_with_corners[0]);
-		sprintf(name, "images/calibration%02dcolour.png", samples);
+		sprintf(name, "D:/calib_images/calibration%02dcolour.png", samples);
 		imwrite(name, image_with_corners[1]);
 		samples++;
 		ret_bool = true;

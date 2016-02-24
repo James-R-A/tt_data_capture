@@ -152,23 +152,22 @@ cv::Mat IPUtils::preProcess(cv::Mat image_in, int bilat_param, int threshold_val
 
 std::vector<int> IPUtils::generateDepthBinMap(bool zero_bin, int total_bins, int max)
 {
-	vector<int> binMap;
-	binMap.resize(max + 1);
-	int ranged_classes = zero_bin ? total_bins - 1 : total_bins;
-	int division = (int)ceil((float)max / ranged_classes);
-	int class_no = zero_bin ? 1 : 0;
-	int d = 1;
-	binMap[0] = 0;
-	for (int i = 1; i <= max; i++)
-	{
-		binMap[i] = class_no;
-		if (d++ == division)
-		{
-			class_no++;
-			d = 1;
-		}
-	}
-	return binMap;
+    std::vector<int> binMap(max+1);
+    int ranged_classes = zero_bin ? total_bins - 1 : total_bins;
+    int division = (int)ceil((float)max / ranged_classes);
+    int class_no = zero_bin ? 1 : 0;
+    int d = 1;
+    binMap[0] = 0;
+    for (int i = 1; i <= max; i++)
+    {
+        binMap[i] = class_no;
+        if (d++ == division)
+        {
+            class_no++;
+            d = 1;
+        }
+    }
+    return binMap;
 }
 
 cv::Mat IPUtils::getPatch(cv::Mat image, cv::Point center, int patch_size)

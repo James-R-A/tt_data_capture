@@ -31,13 +31,13 @@ public:
 	static cv::Mat preProcess(cv::Mat image_in, int bilat_param=30, int threshold_value=36, int threshold_type=3);
 
 	/// <summary>
-	/// Generates a pixel intensity to bin number look-up-table
-	/// Bins are of even size between zero and max, with the option to include a separate zero bin
-	/// </summary>
-	/// <param name="zero_bin"> flag to indicate if a zero class is required </param>
-	/// <param name="total_bins"> Total number of bins, including zero bin if required </param>
-	/// <param name="max"> Maximum value to be included in the bins </param>
-	static std::vector<int> generateDepthBinMap(bool zero_bin, int total_bins, int max);
+    /// Generates a pixel intensity to bin number look-up-table
+    /// Bins are of even size between zero and max, with the option to include a separate zero bin
+    /// </summary>
+    /// <param name="zero_bin"> flag to indicate if a zero class is required </param>
+    /// <param name="total_bins"> Total number of bins, including zero bin if required </param>
+    /// <param name="max"> Maximum value to be included in the bins </param>
+    static std::vector<int> generateDepthBinMap(bool zero_bin, int total_bins, int max);
 
 	static cv::Mat getPatch(cv::Mat image, cv::Point center, int patch_size);
 

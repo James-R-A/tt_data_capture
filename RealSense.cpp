@@ -15,8 +15,11 @@ RealSense::RealSense()
 }
 
 
-bool RealSense::setup(bool depth_flag, bool ir_flag, bool colour_flag, bool depth_raw)
+bool RealSense::setup(bool depth_flag, bool ir_flag, bool colour_flag, bool depth_raw, bool parallel)
 {
+	this->mat_depth = cv::Mat::zeros(cv::Size(480, 640), CV_16UC1);
+	this->mat_ir = cv::Mat::zeros(cv::Size(480, 640), CV_8UC1);
+	this->parallel = parallel;
 	bool ret_bool = false;
 	this->depth_flag = depth_flag;
 	this->ir_flag = ir_flag;
@@ -72,6 +75,8 @@ bool RealSense::doCapture()
 
 		if (this->depth_flag)
 		{
+			// keep 1 previous images.
+			mat_depth.copyTo(mat_depth1);
 			PXCImage *depthIm;
 			// fetch the frame from the sample
 			depthIm = sample->depth;
@@ -87,11 +92,15 @@ bool RealSense::doCapture()
 
 		if (this->ir_flag)
 		{
+			// keep 1 previous images.
+			mat_ir1 = mat_ir.clone();
+			mat_ir.copyTo(mat_ir1);
 			PXCImage *irIm;
 			irIm = sample->ir;
 			PXCImage *pxc_ir_image = irIm;
 			pxc_ir_image->AcquireAccess(PXCImage::ACCESS_READ_WRITE, PXCImage::PIXEL_FORMAT_Y8, &pxc_data_ir);
-			mat_ir = cv::Mat(SET_HEIGHT, SET_WIDTH, CV_8UC1, pxc_data_ir.planes[0]);
+			cv::Mat temp(SET_HEIGHT, SET_WIDTH, CV_8UC1, (uint8_t*)pxc_data_ir.planes[0]);
+			temp.copyTo(mat_ir);
 			pxc_ir_image->ReleaseAccess(&pxc_data_ir);
 		}
 
@@ -159,13 +168,13 @@ bool RealSense::saveFrame(string file_name_in)
 	string file_name = file_name_in;
 
 	if(this->depth_flag)
-		imwrite(file_name+"depth.png", this->mat_depth);
+		ret_bool = cv::imwrite(file_name+"depth.png", this->mat_depth);
 	if (this->colour_flag)
-		imwrite(file_name + "colour.png", this->mat_rgb);
+		ret_bool = ret_bool && cv::imwrite(file_name + "colour.png", this->mat_rgb);
 	if (this->ir_flag)
-		cv::imwrite(file_name + "ir.png", this->mat_ir);
+		ret_bool = ret_bool && cv::imwrite(file_name + "ir.png", this->mat_ir);
 	
-	return true;
+	return ret_bool;
 }
 
 bool RealSense::thresholdIrFrame(int threshold_value, int threshold_type)

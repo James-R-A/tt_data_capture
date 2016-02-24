@@ -32,7 +32,7 @@ using namespace std;
 #define TARGET 0
 #define LOOP_DELAY 30
 #define MIN_CALIB_SAMPLES 25
-#define SAVE_PATH "D:\\test"
+#define SAVE_PATH "D:\\training_realsense\\img"
 
 int cvCameraStreams()
 {
@@ -322,7 +322,7 @@ int cvPairCalib()
 
 	// Calibrate a webcam to the infrared camera of the RealSense Depth Cam
 	std::cout << "\nPair Calibrate Function" << endl;
-	std::cout << "This is basically a stereo calibration, let's see if it works\n" << endl;
+	std::cout << "This is basically a stereo calibration\n" << endl;
 	std::cout << "Please input camera number as detected using main menu option 1" << endl;
 	std::cout << "To return to main menu, enter \"99\"" << endl;
 	std::cin >> input;
@@ -337,7 +337,7 @@ int cvPairCalib()
 	input = -1;
 	cam_name = "camera_" + to_string(cam_no);
 	// Either realsense camera couldn't be found or something went wrong.
-	if (depth_cam.setup(false, true, false))
+	if (depth_cam.setup(false, true, false, true, true))
 		std::cout << "Depth cam setup successful" << endl;
 	else
 	{
@@ -345,7 +345,9 @@ int cvPairCalib()
 		return -1;
 	}
 
-	if (cam.setup(cam_no, cam_name, cv::Size(IMG_WIDTH, IMG_HEIGHT)))
+	bool cam_setup = cam.setup(cam_no, cam_name, cv::Size(IMG_WIDTH, IMG_HEIGHT));
+	bool cam_relay = cam.initRelay();
+	if (cam_setup&&cam_relay)
 		std::cout << "Webcam setup successful" << endl;
 	else
 	{
@@ -372,7 +374,7 @@ int cvPairCalib()
 
 		cap = cam.doCapture();
 		dcap = depth_cam.doCapture();
-
+		
 		// Grab an image frame
 		if (dcap && cap)
 		{
@@ -453,16 +455,50 @@ int cvPairCalib()
 	return 0;
 }
 
+cv::Mat getBinned(std::vector<int>& lut, cv::Mat depth_image)
+{
+	cv::Mat binned(480, 640, CV_8UC1);
+	cv::Mat binned_norm(480, 640, CV_8UC1);
+	int rows = depth_image.size().height;
+	int cols = depth_image.size().width;
+
+	for (int r = 0; r < rows; r++)
+	{
+		uchar* binned_pix = binned.ptr<uchar>(r);
+		uint16_t* depth_pixel = depth_image.ptr<uint16_t>(r);
+		for (int c = 0; c < cols; c++)
+		{
+			if (depth_pixel[c] <= 1200)
+			{
+				binned_pix[c] = lut[depth_pixel[c]];
+			}
+			else
+			{
+				binned_pix[c] = 0;
+			}
+		}
+	}
+	cv::normalize(binned, binned_norm, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+	return binned_norm;
+}
+
 int realSenseFeed()
 {
 	bool continue_flag = true;
 	int ret = -1;
 	int j;
+	bool colour = false;
+
+	std::vector<int> lut = IPUtils::generateDepthBinMap(true, 5, 1200);
+	for (int i = 0; i < lut.size(); i++)
+	{
+		std:cout << to_string(i) << " " << std::to_string(lut[i]) << std::endl;
+	}
 
 	// Initialise and set up RealSense Depth Cam
 	RealSense depth_cam1;
 	bool capture_success;
-	bool setup_flag = depth_cam1.setup(true, true, true, true);
+	bool setup_flag = depth_cam1.setup(true, true, colour, false);
 
 	// Fail if setup failed - ie no RealSense camera could be found.
 	if (!setup_flag)
@@ -474,21 +510,28 @@ int realSenseFeed()
 
 	// Initialise a window for each stream.
 	cv::namedWindow("ir");
-	cv::namedWindow("colour");
+	if(colour)
+		cv::namedWindow("colour");
 	cv::namedWindow("depth");
+	// temp
+	cv::namedWindow("depth_binned");
+	cv::Mat db;
+	cv::Mat depth_norm;
 
 	char* trackbar_type = "Type: \n 0: Binary \n 1: Binary Inverted \n 2: Truncate \n 3: To Zero \n 4: To Zero Inverted";
 	char* trackbar_value = "Value";
 	char* trackbar_filter = "Bilateral filter value";
-
+	
 	int threshold_type = 0;
 	int threshold_value = 0;
 	int bilat = 30;
+	int delay = 10;
 
 	cv::createTrackbar(trackbar_type, "ir", &threshold_type, 4);
 	cv::createTrackbar(trackbar_value, "ir", &threshold_value, 255);
 	cv::createTrackbar(trackbar_filter, "ir", &bilat, 150);
-
+	cv::createTrackbar("capture interval", "ir", &delay, 10);
+	
 	cv::Mat temp;
 	int f = 0;
 	int frames_captured = 0;
@@ -503,35 +546,45 @@ int realSenseFeed()
 		capture_success = depth_cam1.doCapture();
 		if (capture_success)
 		{
+			db = getBinned(lut, depth_cam1.mat_depth);
+			cv::normalize(depth_cam1.mat_depth, depth_norm, 0, 65535, cv::NORM_MINMAX, CV_16UC1);
 			//temp = depth_cam1.mat_ir;
 			//temp = IPUtils::getBilateralFiltered(temp, bilat);
 			//temp = IPUtils::getThresholded(temp, threshold_value, threshold_type);
-			temp = depth_cam1.mat_rgb;
+			temp = depth_cam1.mat_ir;
 			text_string = recording ? "Recording:" : "Not Recording: ";
 			text_string = text_string + "  Frames Captured: ";
 			text_string = text_string + to_string(frames_captured);
 			cv::putText(temp, text_string, cv::Point(15, 15), 4, 0.5, cv::Scalar(0, 255, 0), 1, 8);
 			cv::imshow("ir", depth_cam1.mat_ir);
-			cv::imshow("colour", depth_cam1.mat_rgb);
-			cv::imshow("depth", depth_cam1.mat_depth);
+			if(colour)
+				cv::imshow("colour", depth_cam1.mat_rgb);
+			
+			cv::imshow("depth_binned", db);
+			cv::imshow("depth", depth_norm);
 
 			if (first)
 			{
 				cout << "depth:" << endl;
 				cout << IPUtils::getTypeString(depth_cam1.mat_depth.type()) << endl;
-				cout << "colour:" << endl;
-				cout << IPUtils::getTypeString(depth_cam1.mat_rgb.type()) << endl;
+				if (colour)
+				{
+					cout << "colour:" << endl;
+					cout << IPUtils::getTypeString(depth_cam1.mat_rgb.type()) << endl;
+				}
 				cout << "ir:" << endl;
 				cout << IPUtils::getTypeString(depth_cam1.mat_ir.type()) << endl;
 				first = false;
 			}
 			if (recording)
 			{
-				if (f > 10)
+				if (f > delay)
 				{
-					depth_cam1.saveFrame(SAVE_PATH + to_string(frames_captured));
-					frames_captured++;
-					f = 0;
+					if (depth_cam1.saveFrame(SAVE_PATH + to_string(frames_captured+186)))
+					{
+						frames_captured++;
+						f = 0;
+					}
 				}
 				f++;
 			}
@@ -568,7 +621,7 @@ int trialPreProc()
 	std::cout << "Please enter webcam cam number as found in menu option 1" << std::endl;
 	std::cin >> cam_number;
 
-	bool rs_setup = realsense.setup(true, true, false, true);
+	bool rs_setup = realsense.setup(true, true, false, true, true);
 	if (!rs_setup)
 	{
 		std::cout << "Realsense setup failed" << endl;
@@ -591,15 +644,23 @@ int trialPreProc()
 	char* trackbar_type = "Type";
 	char* trackbar_value = "Value";
 	char* trackbar_filter = "Bilateral filter value";
-
-	int threshold_type = 0;
+	char* d1 = "d1";
+	char* d2 = "d2";
+	char* d3 = "d3";
+	char* d4 = "d4";
+		
+	int threshold_type = 3;
 	int threshold_value = 0;
 	int bilat = 30;
 
-	int threshold_typeir = 0;
+	int threshold_typeir = 3;
 	int threshold_valueir = 0;
 	int bilatir = 30;
-
+	int delay1 = 80;
+	int delay2 = 80;
+	int delay3 = 80;
+	int delay4 = 80;
+	
 	cv::createTrackbar(trackbar_type, "webcam", &threshold_type, 4);
 	cv::createTrackbar(trackbar_value, "webcam", &threshold_value, 255);
 	cv::createTrackbar(trackbar_filter, "webcam", &bilat, 150);
@@ -607,23 +668,38 @@ int trialPreProc()
 	cv::createTrackbar(trackbar_type, "ir", &threshold_typeir, 4);
 	cv::createTrackbar(trackbar_value, "ir", &threshold_valueir, 255);
 	cv::createTrackbar(trackbar_filter, "ir", &bilatir, 150);
-
+	cv::createTrackbar(d1, "ir", &delay1, 500);
+	cv::createTrackbar(d2, "ir", &delay2, 500);
+	cv::createTrackbar(d3, "ir", &delay3, 500);
+	cv::createTrackbar(d4, "ir", &delay4, 500);
+	
 	cv::Mat processed_image;
-	cv::Mat processed_ir;
-	bool laser = false;
-	bool leds = true;
-	leds = webcam.setRelay(leds);
-	laser = realsense.setLaser(laser);
+	cv::Mat processed_ir, processed_ir1;
 	while (continue_flag)
 	{
 		int64 start_time = cv::getTickCount();
+		realsense.setLaser(false);
+		webcam.setRelay(true);
+		cv::waitKey(delay1);
 		webcam.doCapture();
+		webcam.doCapture();
+		webcam.doCapture();
+		webcam.doCapture();
+		webcam.doCapture();
+		webcam.doCapture();
+		cv::waitKey(delay2);
+		realsense.setLaser(true);
+		webcam.setRelay(false);
+		cv::waitKey(delay3);
 		realsense.doCapture();
+		cv::waitKey(delay4);
 		processed_image = IPUtils::preProcess(webcam.getFrameGrayscale(), bilat, threshold_value, threshold_type);
 		processed_ir = IPUtils::preProcess(realsense.mat_ir, bilatir, threshold_valueir, threshold_typeir);
+		processed_ir1 = IPUtils::preProcess(realsense.mat_ir1, bilatir, threshold_valueir, threshold_typeir);
 
+		cv::imshow("ir1", realsense.mat_ir1);
 		cv::imshow("webcam", processed_image);
-		cv::imshow("ir", processed_ir);
+		cv::imshow("ir", realsense.mat_ir);
 		cv::imshow("depth", realsense.mat_depth);
 
 		int64 process_time = (((cv::getTickCount() - start_time) / cv::getTickFrequency()) * 1000);
@@ -631,8 +707,7 @@ int trialPreProc()
 		int ret = cv::waitKey(wait_time);
 		if (ret == 108)
 		{
-			leds = webcam.setRelay(!leds);
-			laser = realsense.setLaser(!laser);
+			
 		}
 		else if (ret >= 0)
 			continue_flag = false;
@@ -679,7 +754,7 @@ int main()
 		else if (in.compare("3") == 0)
 		{
 			cvPairCalib();
-			printMenu;
+			printMenu();
 		}
 		else if (in.compare("4") == 0)
 		{

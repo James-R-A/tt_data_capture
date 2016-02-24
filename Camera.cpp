@@ -57,6 +57,9 @@ bool Camera::setup(int camera_number, std::string camera_name, cv::Size image_si
 	{
 		capture.set(cv::CAP_PROP_FRAME_HEIGHT, image_size.height);
 		capture.set(cv::CAP_PROP_FRAME_WIDTH, image_size.width);
+		std::cout << std::to_string(capture.get(CV_CAP_PROP_BUFFERSIZE)) << std::endl;
+		capture.set(CV_CAP_PROP_BUFFERSIZE, 1);
+		std::cout << std::to_string(capture.get(CV_CAP_PROP_BUFFERSIZE)) << std::endl;
 		this->open = true;
 		return_bool = true;
 	}
@@ -67,13 +70,30 @@ bool Camera::setup(int camera_number, std::string camera_name, cv::Size image_si
 // Capture a frame, store to this->frame_raw.
 bool Camera::doCapture()
 {
+	/*if (relay_init)
+	{
+		setRelay(true);
+	}*/
+
 	bool return_bool = false;
 
 	capture >> frame_raw;
 	if (capture.isOpened())
 		return_bool = true;
 
+	/*if (relay_init)
+	{
+		setRelay(false);
+	}*/
+
 	return return_bool;
+}
+
+bool Camera::grab()
+{
+	capture.grab();
+	capture.retrieve(frame_raw);
+	return true;
 }
 
 // Convert this->frame_raw into a grayscale image and return it.
@@ -106,6 +126,7 @@ bool Camera::initRelay()
 
 	this->relay_state = this->relay->get_state();
 	relay_init = true;
+	leds = false;
 
 	return true;
 }
@@ -133,5 +154,8 @@ bool Camera::setRelay(bool value)
 
 	relay->set_state(new_state);
 
-	return value;
+	if (relay->get_state() == new_state)
+		return true;
+	else
+		return false;
 }

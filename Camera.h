@@ -24,12 +24,14 @@ public:
 	std::string camera_name;
 	int camera_number;
 	bool relay_init;
-	
+	bool leds;
+
 	Camera();
 	~Camera();
 
 	static std::vector<int> detectCameras(int max_check, bool builtin_flag);
 	bool setup(int camera_number, std::string camera_name, cv::Size image_size);
+	bool grab();
 	bool doCapture();
 	cv::Mat getFrameGrayscale();
 	bool initRelay();
